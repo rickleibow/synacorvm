@@ -52,6 +52,10 @@ class Machine
                 $b = $this->next();
                 $this->set($a, $this->resolve($b));
                 break;
+            case 6:
+                // jmp a
+                $a = $this->next();
+                $this->ip = $this->resolve($a) - 1;
             case 9:
                 // add a b c
                 $a = $this->next();
@@ -63,6 +67,12 @@ class Machine
                 // out a
                 $a = $this->next();
                 echo chr($this->resolve($a));
+                break;
+            case 21:
+                // noop
+                break;
+            default:
+                throw new \RuntimeException("Instruction $instruction not implemented.");
                 break;
         }
     }
