@@ -55,7 +55,7 @@ class Machine
             case 2:
                 // push a
                 $a = $this->next();
-                $this->push($a);
+                $this->push($this->resolve($a));
                 break;
             case 3:
                 // pop a
@@ -68,6 +68,13 @@ class Machine
                 $b = $this->next();
                 $c = $this->next();
                 $this->set($a, (int) ($this->resolve($b) === $this->resolve($c)));
+                break;
+            case 5:
+                // gt a b c
+                $a = $this->next();
+                $b = $this->next();
+                $c = $this->next();
+                $this->set($a, (int) ($this->resolve($b) > $this->resolve($c)));
                 break;
             case 6:
                 // jmp a
@@ -98,6 +105,26 @@ class Machine
                 $b = $this->next();
                 $c = $this->next();
                 $this->set($a, ($this->resolve($b) + $this->resolve($c)) % 32768);
+                break;
+            case 12:
+                // and a b c (bitwise)
+                $a = $this->next();
+                $b = $this->next();
+                $c = $this->next();
+                $this->set($a, $this->resolve($b) & $this->resolve($c));
+                break;
+            case 13:
+                // or a b c (bitwise)
+                $a = $this->next();
+                $b = $this->next();
+                $c = $this->next();
+                $this->set($a, $this->resolve($b) | $this->resolve($c));
+                break;
+            case 14:
+                // not a b (bitwise)
+                $a = $this->next();
+                $b = $this->next();
+                $this->set($a, $this->resolve($b) ^ 0xffff);
                 break;
             case 19:
                 // out a
