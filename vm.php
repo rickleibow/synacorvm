@@ -55,7 +55,17 @@ class Machine
             case 6:
                 // jmp a
                 $a = $this->next();
-                $this->ip = $this->resolve($a) - 1;
+                $this->ip = $this->resolve($a);
+                break;
+            case 7:
+                // jt a b
+                // if a, jmp to b
+                $a = $this->next();
+                $b = $this->next();
+                if ($this->resolve($a)) {
+                    $this->ip = $this->resolve($b);
+                }
+                break;
             case 9:
                 // add a b c
                 $a = $this->next();
