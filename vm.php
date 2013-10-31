@@ -52,6 +52,23 @@ class Machine
                 $b = $this->next();
                 $this->set($a, $this->resolve($b));
                 break;
+            case 2:
+                // push a
+                $a = $this->next();
+                $this->push($a);
+                break;
+            case 3:
+                // pop a
+                $a = $this->next();
+                $this->set($a, $this->pop());
+                break;
+            case 4:
+                // eq a b c
+                $a = $this->next();
+                $b = $this->next();
+                $c = $this->next();
+                $this->set($a, (int) ($this->resolve($b) === $this->resolve($c)));
+                break;
             case 6:
                 // jmp a
                 $a = $this->next();
@@ -63,6 +80,15 @@ class Machine
                 $a = $this->next();
                 $b = $this->next();
                 if ($this->resolve($a)) {
+                    $this->ip = $this->resolve($b);
+                }
+                break;
+            case 8:
+                // jf a b
+                // if not a, jmp to b
+                $a = $this->next();
+                $b = $this->next();
+                if (!$this->resolve($a)) {
                     $this->ip = $this->resolve($b);
                 }
                 break;
