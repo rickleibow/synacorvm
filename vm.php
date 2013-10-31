@@ -8,13 +8,15 @@ const MACHINE_CONTINUE = 0;
 class Machine
 {
     private $memory = [];
-    private $sp = -1;
+    private $registers = [];
+    private $stack = [];
     private $instructions;
     private $ip = 0;
 
     function __construct(array $instructions)
     {
         $this->instructions = $instructions;
+        $this->registers = array_fill(0, 8, 0);
     }
 
     function execute()
@@ -34,7 +36,7 @@ class Machine
             return null;
         }
 
-        return $this->get_register_value($this->instructions[$this->ip++]);
+        return $this->instructions[$this->ip++];
     }
 
     private function process_instruction($instruction)
@@ -48,64 +50,75 @@ class Machine
                 // set a b
                 $a = $this->next();
                 $b = $this->next();
-                $this->set($a, $b);
+                $this->set($a, $this->resolve($b));
                 break;
             case 9:
                 // add a b c
                 $a = $this->next();
                 $b = $this->next();
                 $c = $this->next();
-                $this->set($a, ($b + $c) % 32768);
-                var_dump('set');
+                $this->set($a, ($this->resolve($b) + $this->resolve($c)) % 32768);
                 break;
             case 19:
                 // out a
                 $a = $this->next();
-                echo chr($a);
-                var_dump('out');
-                var_dump($a);
+                echo chr($this->resolve($a));
                 break;
         }
     }
 
     private function push($value)
     {
-        $this->memory[$this->sp++] = $value;
+        array_push($this->stack, $value);
     }
 
     private function pop()
     {
-        return $this->memory[--$this->sp];
+        return array_pop($this->stack);
     }
 
-    private function set($register, $value)
+    private function set($i, $value)
     {
-        $this->memory[$register] = $value;
+        if ($i >= 0 && $i <= 32767) {
+            $this->memory[$i] = $value;
+            return;
+        }
+
+        if ($i >= 32768 && $i <= 32775) {
+            $this->registers[$i - 32768] = $value;
+            return;
+        }
+
+        throw new \RuntimeException("Unable to set invalid value $i");
     }
 
-    private function get($register, $value)
+    private function resolve($n)
     {
-        return $this->memory[$register];
-    }
-
-    private function get_register_value($n)
-    {
-        var_dump("... $n");
         if ($n >= 0 && $n <= 32767) {
             return $n;
         }
 
         if ($n >= 32768 && $n <= 32775) {
-            return $this->memory[$i + 32768];
+            return $this->registers[$n - 32768];
         }
 
-        throw new \RuntimeException("Invalid value $n");
+        throw new \RuntimeException("Unable to resolve invalid value $n");
     }
+}
+
+function pack_int16($x)
+{
+    return pack('v', $x);
+}
+
+function unpack_int16($data)
+{
+    return unpack('v', $data)[1];
 }
 
 function parse($code)
 {
-    return array_map('ord', str_split($code));
+    return array_map('igorw\synacorvm\unpack_int16', str_split($code, 2));
 }
 
 function execute($code)
@@ -114,5 +127,5 @@ function execute($code)
     return $vm->execute();
 }
 
-var_dump(execute(implode('', array_map('chr', [9,32768,32769,4,19,32768]))));
-// var_dump(execute(file_get_contents('challenge.bin')));
+// execute(implode('', array_map('igorw\synacorvm\pack_int16', [9,32768,32769,4,19,32768])));
+execute(file_get_contents('challenge.bin'));
