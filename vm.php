@@ -256,7 +256,7 @@ function parse($code)
 function execute($code)
 {
     $vm = new Machine(parse($code));
-    return $vm->execute();
+    $vm->execute();
 }
 
 // execute(implode('', array_map('igorw\synacorvm\pack_int16', [9,32768,32769,4,19,32768])));
