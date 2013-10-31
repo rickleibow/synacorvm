@@ -4,12 +4,13 @@ namespace igorw\synacorvm;
 
 const MACHINE_HALT = 0;
 const MACHINE_CONTINUE = 0;
+const REGION_STACK = 32776;
 
 class Machine
 {
     private $memory = [];
-    private $stack = [];
     private $ip = 0;
+    private $sp = 0;
     private $input_buffer = '';
 
     function __construct(array $memory)
@@ -18,6 +19,8 @@ class Machine
         for ($i = 32768; $i <= 32775; $i++) {
             $this->memory[$i] = 0;
         }
+
+        $this->sp = REGION_STACK;
     }
 
     function execute()
@@ -200,12 +203,16 @@ class Machine
 
     private function push($value)
     {
-        array_push($this->stack, $value);
+        $this->memory[++$this->sp] = $value;
     }
 
     private function pop()
     {
-        return $this->stack ? array_pop($this->stack) : null;
+        if (REGION_STACK === $this->sp) {
+            return null;
+        }
+
+        return $this->memory[$this->sp--];
     }
 
     private function set($i, $value)
