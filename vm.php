@@ -106,6 +106,20 @@ class Machine
                 $c = $this->next();
                 $this->set($a, ($this->resolve($b) + $this->resolve($c)) % 32768);
                 break;
+            case 10:
+                // mult a b c
+                $a = $this->next();
+                $b = $this->next();
+                $c = $this->next();
+                $this->set($a, ($this->resolve($b) * $this->resolve($c)) % 32768);
+                break;
+            case 11:
+                // mod a b c
+                $a = $this->next();
+                $b = $this->next();
+                $c = $this->next();
+                $this->set($a, $this->resolve($b) % $this->resolve($c));
+                break;
             case 12:
                 // and a b c (bitwise)
                 $a = $this->next();
@@ -124,12 +138,44 @@ class Machine
                 // not a b (bitwise)
                 $a = $this->next();
                 $b = $this->next();
-                $this->set($a, $this->resolve($b) ^ 0xffff);
+                $this->set($a, $this->resolve($b) ^ 0x7fff);
+                break;
+            case 15:
+                // rmem a b
+                $a = $this->next();
+                $b = $this->next();
+                $this->set($a, $this->memory[$this->resolve($b)]);
+                break;
+            case 16:
+                // wmem a b
+                $a = $this->next();
+                $b = $this->next();
+                $this->set($this->resolve($a), $this->resolve($b));
+                break;
+            case 17:
+                // call a
+                $a = $this->next();
+                $this->push($this->ip);
+                $this->ip = $this->resolve($a);
+                break;
+            case 18:
+                // ret
+                $ip = $this->pop();
+                if (null === $ip) {
+                    return MACHINE_HALT;
+                }
+                $this->ip = $ip;
                 break;
             case 19:
                 // out a
                 $a = $this->next();
                 echo chr($this->resolve($a));
+                break;
+            case 20:
+                // in a
+                $a = $this->next();
+                $in = fgets(STDIN, 1);
+                echo $this->set($a, ord($in));
                 break;
             case 21:
                 // noop
@@ -147,7 +193,7 @@ class Machine
 
     private function pop()
     {
-        return array_pop($this->stack);
+        return $this->stack ? array_pop($this->stack) : null;
     }
 
     private function set($i, $value)
