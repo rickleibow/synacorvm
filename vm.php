@@ -4,6 +4,10 @@ namespace igorw\synacorvm;
 
 const MACHINE_HALT = 0;
 const MACHINE_CONTINUE = 0;
+
+const MACHINE_MODULUS = 32768;
+
+const REGION_REGISTER = 32768;
 const REGION_STACK = 32776;
 
 class Machine
@@ -16,7 +20,7 @@ class Machine
     function __construct(array $memory)
     {
         $this->memory = $memory;
-        for ($i = 32768; $i <= 32775; $i++) {
+        for ($i = REGION_REGISTER; $i < REGION_STACK; $i++) {
             $this->memory[$i] = 0;
         }
 
@@ -108,14 +112,14 @@ class Machine
                 $a = $this->next();
                 $b = $this->next();
                 $c = $this->next();
-                $this->set($a, ($this->resolve($b) + $this->resolve($c)) % 32768);
+                $this->set($a, ($this->resolve($b) + $this->resolve($c)) % MACHINE_MODULUS);
                 break;
             case 10:
                 // mult a b c
                 $a = $this->next();
                 $b = $this->next();
                 $c = $this->next();
-                $this->set($a, ($this->resolve($b) * $this->resolve($c)) % 32768);
+                $this->set($a, ($this->resolve($b) * $this->resolve($c)) % MACHINE_MODULUS);
                 break;
             case 11:
                 // mod a b c
@@ -222,11 +226,11 @@ class Machine
 
     private function resolve($n)
     {
-        if ($n >= 0 && $n <= 32767) {
+        if ($n >= 0 && $n < REGION_REGISTER) {
             return $n;
         }
 
-        if ($n >= 32768 && $n <= 32775) {
+        if ($n >= REGION_REGISTER && $n < REGION_STACK) {
             return $this->memory[$n];
         }
 
