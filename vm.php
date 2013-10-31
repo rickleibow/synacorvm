@@ -8,21 +8,21 @@ const MACHINE_CONTINUE = 0;
 class Machine
 {
     private $memory = [];
-    private $registers = [];
     private $stack = [];
-    private $instructions;
     private $ip = 0;
 
-    function __construct(array $instructions)
+    function __construct(array $memory)
     {
-        $this->instructions = $instructions;
-        $this->registers = array_fill(0, 8, 0);
+        $this->memory = $memory;
+        for ($i = 32768; $i <= 32775; $i++) {
+            $this->memory[$i] = 0;
+        }
     }
 
     function execute()
     {
-        while (null !== ($instruction = $this->next())) {
-            $status = $this->process_instruction($instruction);
+        while (null !== ($op = $this->next())) {
+            $status = $this->process_op($op);
 
             if (MACHINE_HALT === $status) {
                 break;
@@ -32,16 +32,16 @@ class Machine
 
     private function next()
     {
-        if (!isset($this->instructions[$this->ip])) {
+        if (!isset($this->memory[$this->ip])) {
             return null;
         }
 
-        return $this->instructions[$this->ip++];
+        return $this->memory[$this->ip++];
     }
 
-    private function process_instruction($instruction)
+    private function process_op($op)
     {
-        switch ($instruction) {
+        switch ($op) {
             case 0:
                 // halt
                 return MACHINE_HALT;
@@ -72,7 +72,7 @@ class Machine
                 // noop
                 break;
             default:
-                throw new \RuntimeException("Instruction $instruction not implemented.");
+                throw new \RuntimeException("Instruction $op not implemented.");
                 break;
         }
     }
@@ -89,17 +89,7 @@ class Machine
 
     private function set($i, $value)
     {
-        if ($i >= 0 && $i <= 32767) {
-            $this->memory[$i] = $value;
-            return;
-        }
-
-        if ($i >= 32768 && $i <= 32775) {
-            $this->registers[$i - 32768] = $value;
-            return;
-        }
-
-        throw new \RuntimeException("Unable to set invalid value $i");
+        $this->memory[$i] = $value;
     }
 
     private function resolve($n)
@@ -109,7 +99,7 @@ class Machine
         }
 
         if ($n >= 32768 && $n <= 32775) {
-            return $this->registers[$n - 32768];
+            return $this->memory[$n];
         }
 
         throw new \RuntimeException("Unable to resolve invalid value $n");
