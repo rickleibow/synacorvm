@@ -10,6 +10,7 @@ class Machine
     private $memory = [];
     private $stack = [];
     private $ip = 0;
+    private $input_buffer = '';
 
     function __construct(array $memory)
     {
@@ -174,7 +175,7 @@ class Machine
             case 20:
                 // in a
                 $a = $this->next();
-                $in = fgets(STDIN, 1);
+                $in = $this->read_char();
                 echo $this->set($a, ord($in));
                 break;
             case 21:
@@ -184,6 +185,17 @@ class Machine
                 throw new \RuntimeException("Instruction $op not implemented.");
                 break;
         }
+    }
+
+    private function read_char()
+    {
+        if (0 === strlen($this->input_buffer)) {
+            $this->input_buffer = fgets(STDIN);
+        }
+
+        $in = $this->input_buffer[0];
+        $this->input_buffer = substr($this->input_buffer, 1);
+        return $in;
     }
 
     private function push($value)
