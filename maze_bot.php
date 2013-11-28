@@ -36,22 +36,34 @@ function run_and_capture($vm, $stdout)
     return stream_get_contents($stdout);
 }
 
+function parse_list($text)
+{
+    $list = trim($text);
+    $list = explode("\n", $list);
+    $list = array_map(function ($line) { return preg_replace('#^- #', '', $line); }, $list);
+
+    return $list;
+}
+
 function parse_rooms($rooms_text)
 {
-    $regex = '#== (?P<title>.+?) ==\n(?<description>.+?)\nThere are \d exits:\n(?<exits>.+?)\nWhat do you do\?#s';
+    $regex = '#== (?P<title>.+?) ==\n(?<description>.+?)(\nThings of interest here:\n(?<items>))?\nThere (are|is) \d exits?:\n(?<exits>.+?)\nWhat do you do\?#s';
 
     preg_match_all($regex, $rooms_text, $matches, PREG_SET_ORDER);
 
     return array_map(function ($room) {
         $source = $room[0];
+        $items = $room['items'] ? parse_list($room['items']) : [];
+        $exits = parse_list($room['exits']);
 
-        $exits = trim($room['exits']);
-        $exits = explode("\n", $exits);
-        $exits = array_map(function ($line) { return preg_replace('#^- #', '', $line); }, $exits);
+        if ($items) {
+            var_dump($items);exit;
+        }
 
         return [
             'title'         => $room['title'],
             'description'   => $room['description'],
+            'items'         => $items,
             'exits'         => $exits,
             // 'source'        => $source,
             'hash'          => sha1($source),
@@ -61,10 +73,19 @@ function parse_rooms($rooms_text)
 
 function parse_room($room_text)
 {
+    // dead from being eaten by grue
+    // throw exception so caller can backtrack
+    if ('You have been eaten by a grue.' === trim($room_text)) {
+        throw new GrueException();
+    }
+
+    // strip out code on wall
+    $room_text = preg_replace('#^(.+?)Chiseled on the wall(.+?)and keep walking.#s', '', $room_text);
+
     $rooms = parse_rooms($room_text);
 
     if (1 !== count($rooms)) {
-        throw new \InvalidArgumentException(sprintf('Expected exactly one room, but got %s', count($rooms)));
+        throw new \InvalidArgumentException(sprintf('Expected exactly one room, but got %s. Input text was: %s.', count($rooms), $room_text));
     }
 
     return $rooms[0];
@@ -77,6 +98,8 @@ function write_maze_move($vm, $stdin, $stdout, $command)
     $room = parse_room($room_text);
     return $room;
 }
+
+class GrueException extends \RuntimeException {}
 
 require 'src/vm.php';
 
@@ -105,62 +128,80 @@ run_and_capture($vm, $stdout);
 // enter maze
 $init_room = write_maze_move($vm, $stdin, $stdout, 'ladder');
 
-// start searching maze
-search_init($vm, $stdin, $stdout, $init_room);
+if (2 !== $argc || !in_array($argv[1], ['north', 'east', 'south', 'west'])) {
+    echo "You must provide an initial exit, and it must be one of: ";
+    echo "north, east, south, west.\n";
+    exit(1);
+}
+$init_exit = $argv[1];
 
-function search_init($vm, $stdin, $stdout, $init_room)
+// start searching maze
+search_init($vm, $stdin, $stdout, $init_room, $init_exit);
+
+function search_init($vm, $stdin, $stdout, $init_room, $init_exit)
 {
     $init_vm = clone $vm;
     $trail = [];
 
     $init_hash = $init_room['hash'];
-    $init_exits = array_filter($init_room['exits'], function ($exit) { return $exit !== 'ladder'; });
 
-    foreach ($init_exits as $exit) {
-        $trail[] = $exit;
-        $room = write_maze_move($vm, $stdin, $stdout, $exit);
-        $found = search_room($vm, $stdin, $stdout, $exit, $init_hash, $room, $init_vm, $trail);
+    $trail[] = $init_exit;
+    $room = write_maze_move($vm, $stdin, $stdout, $init_exit);
+    $found = search_room($vm, $stdin, $stdout, $init_exit, [$init_hash], $room, $init_vm, $trail);
 
-        // var_dump(['init', $found, $trail]);
-
-        // backtrack
-        if (!$found) {
-            $vm = clone $init_vm;
-            array_pop($trail);
-            write_inputs($stdin, $trail);
-        }
-    }
+    var_dump(['init', $found, $trail]);
 }
 
-function search_room($vm, $stdin, $stdout, $exit, $init_hash, $room, $init_vm, $trail)
+function search_room(Machine $vm, $stdin, $stdout, $exit, array $bt_hashes, array $room, Machine $init_vm, array $trail)
 {
-    if (!preg_match('#^You are in a (.+?), all (.+?)\.$#', $room['description'])) {
-        echo $room['description'];
-        echo "\n";
-        echo json_encode($trail)."\n";
-        echo "\n";
+    if (in_array($room['hash'], $bt_hashes)) {
+        return false;
     }
 
+    $first = true;
+
     foreach ($room['exits'] as $exit) {
-        $trail[] = $exit;
-        $room = write_maze_move($vm, $stdin, $stdout, $exit);
-
-        if ($init_hash === $room['hash']) {
-            return false;
-        }
-
-        // recur
-        $found = search_room($vm, $stdin, $stdout, $exit, $init_hash, $room, $init_vm, $trail);
-
-        // var_dump(['room', $found, $trail]);
-
         // backtrack
-        if (!$found) {
+        if (!$first) {
+            echo "failed, backtracking...\n\n";
+
             $vm = clone $init_vm;
-            array_pop($trail);
             foreach ($trail as $t) {
                 write_maze_move($vm, $stdin, $stdout, $t);
             }
         }
+        $first = false;
+
+        if (!preg_match('#^You are in a (.+?), all (.+?)\.$#', $room['description'])) {
+            echo $room['hash'];
+            echo "\n\n";
+            echo $room['description'];
+            echo "\n";
+            echo 'Exits: '.json_encode($room['exits'])."\n";
+            echo "\n";
+            echo 'Trail: '.json_encode($trail)."\n";
+            echo "\n";
+            echo "Trying: $exit\n";
+            echo "\n";
+        }
+
+        try {
+            $next_room = write_maze_move($vm, $stdin, $stdout, $exit);
+        } catch (GrueException $e) {
+            // backtrack
+            continue;
+        }
+
+        // recur
+        $found = search_room($vm, $stdin, $stdout, $exit, array_merge($bt_hashes, [$room['hash']]), $next_room, $init_vm, array_merge($trail, [$exit]));
+
+        if ($found) {
+            // var_dump(['room', $found, array_merge($trail, [$exit])]);
+            return true;
+        }
+
+        // var_dump(['room', $found]);
     }
+
+    return false;
 }
