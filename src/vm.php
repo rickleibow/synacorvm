@@ -197,13 +197,13 @@ class Machine
             case 19:
                 // out a
                 $a = $this->next();
-                echo chr($this->resolve($a));
+                fwrite($this->stdout, chr($this->resolve($a)));
                 break;
             case 20:
                 // in a
                 $in = $this->read_char();
                 $a = $this->next();
-                fwrite($this->stdout, $this->set($a, ord($in)));
+                $this->set($a, ord($in));
                 break;
             case 21:
                 // noop
