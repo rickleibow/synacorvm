@@ -13,17 +13,21 @@ const REGION_STACK = 32776;
 class Machine
 {
     private $memory = [];
+    private $stdin;
+    private $stdout;
     private $ip = 0;
     private $sp = 0;
     private $input_buffer = '';
 
-    function __construct(array $memory)
+    function __construct(array $memory, $stdin = null, $stdout = null)
     {
         $this->memory = $memory;
         for ($i = REGION_REGISTER; $i < REGION_STACK; $i++) {
             $this->memory[$i] = 0;
         }
 
+        $this->stdin = $stdin ?: STDIN;
+        $this->stdout = $stdout ?: STDOUT;
         $this->sp = REGION_STACK;
     }
 
@@ -183,7 +187,7 @@ class Machine
                 // in a
                 $a = $this->next();
                 $in = $this->read_char();
-                echo $this->set($a, ord($in));
+                fwrite($this->stdout, $this->set($a, ord($in)));
                 break;
             case 21:
                 // noop
@@ -197,7 +201,7 @@ class Machine
     private function read_char()
     {
         if (0 === strlen($this->input_buffer)) {
-            $this->input_buffer = fgets(STDIN);
+            $this->input_buffer = fgets($this->stdin);
         }
 
         $in = $this->input_buffer[0];
