@@ -10,6 +10,8 @@ const MACHINE_MODULUS = 32768;
 const REGION_REGISTER = 32768;
 const REGION_STACK = 32776;
 
+class NoInputException extends \RuntimeException {}
+
 class Machine
 {
     private $memory = [];
@@ -18,6 +20,8 @@ class Machine
     private $ip = 0;
     private $sp = 0;
     private $input_buffer = '';
+    private $instr_count = 0;
+    private $halted = false;
 
     function __construct(array $memory, $stdin = null, $stdout = null)
     {
@@ -33,19 +37,31 @@ class Machine
 
     function execute()
     {
-        while (null !== ($op = $this->next())) {
-            $status = $this->process_op($op);
-
-            if (MACHINE_HALT === $status) {
-                break;
-            }
+        while (!$this->halted) {
+            $this->tick();
         }
+    }
+
+    private function tick()
+    {
+        if ($this->halted) {
+            throw new \RuntimeException('Machine has halted, cannot tick');
+        }
+
+        $op = $this->next();
+        $status = $this->process_op($op);
+
+        if (MACHINE_HALT === $status) {
+            $this->halted = true;
+        }
+
+        $this->instr_count++;
     }
 
     private function next()
     {
         if (!isset($this->memory[$this->ip])) {
-            return null;
+            throw new \OutOfBoundsException(sprintf('IP points to invalid address %s', $this->ip));
         }
 
         return $this->memory[$this->ip++];
@@ -185,8 +201,8 @@ class Machine
                 break;
             case 20:
                 // in a
-                $a = $this->next();
                 $in = $this->read_char();
+                $a = $this->next();
                 fwrite($this->stdout, $this->set($a, ord($in)));
                 break;
             case 21:
@@ -202,6 +218,12 @@ class Machine
     {
         if (0 === strlen($this->input_buffer)) {
             $this->input_buffer = fgets($this->stdin);
+
+            if (false === $this->input_buffer) {
+                // reset ip to allow retry
+                $this->ip--;
+                throw new NoInputException();
+            }
         }
 
         $in = $this->input_buffer[0];
