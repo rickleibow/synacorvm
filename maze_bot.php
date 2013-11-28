@@ -79,6 +79,10 @@ function parse_room($room_text)
         throw new GrueException();
     }
 
+    if ("I don't understand; try 'help' for instructions.\n\nWhat do you do?" === trim($room_text)) {
+        throw new \InvalidArgumentException('Invalid command given.');
+    }
+
     // strip out code on wall
     $room_text = preg_replace('#^(.+?)Chiseled on the wall(.+?)and keep walking.#s', '', $room_text);
 
@@ -114,14 +118,27 @@ run_and_capture($vm, $stdout);
 
 // go to maze
 write_inputs($stdin, [
+    // go over bridge and down
     'doorway',
     'north',
     'north',
     'bridge',
     'continue',
     'down',
+    // fetch lantern
+    'east',
+    'take empty lantern',
+    'west',
+    // fetch can
     'west',
     'passage',
+    'ladder',
+    'west',
+    'south',
+    'north',
+    'take can',
+    'west',
+    'ladder',
 ]);
 run_and_capture($vm, $stdout);
 
@@ -176,6 +193,10 @@ function search_room(Machine $vm, $stdin, $stdout, $exit, array $bt_hashes, arra
             echo $room['hash'];
             echo "\n\n";
             echo $room['description'];
+            if ($room['items']) {
+                echo "\n";
+                echo 'Items: '.json_encode($room['items'])."\n";
+            }
             echo "\n";
             echo 'Exits: '.json_encode($room['exits'])."\n";
             echo "\n";
