@@ -2,20 +2,12 @@
 
 namespace igorw\synacorvm;
 
-function unpack_int16($data)
-{
-    return unpack('v', $data)[1];
-}
-
-function parse($code)
-{
-    return array_map('igorw\synacorvm\unpack_int16', str_split($code, 2));
-}
-
 function format_line($index, $line)
 {
     return str_pad($index, 5, ' ', STR_PAD_LEFT).":\t".implode(' ', $line)."\n";
 }
+
+require 'src/vm.php';
 
 $types = [
     0  => ['name' => 'halt'],
@@ -42,7 +34,7 @@ $types = [
     21 => ['name' => 'nop'],
 ];
 
-$ops = parse(file_get_contents('challenge.bin'));
+$ops = parse(file_get_contents('data/challenge.bin'));
 
 $i = 0;
 while ($i < count($ops)) {

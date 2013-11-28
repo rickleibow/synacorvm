@@ -258,6 +258,3 @@ function execute($code)
     $vm = new Machine(parse($code));
     $vm->execute();
 }
-
-// execute(implode('', array_map('igorw\synacorvm\pack_int16', [9,32768,32769,4,19,32768])));
-execute(file_get_contents('challenge.bin'));
